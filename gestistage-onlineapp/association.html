@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Association Stagiaire - Encadreur</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Segoe UI', 'Times New Roman', serif;
+      background-image: url('gerer.jpg');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+      background-attachment: fixed;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    .main-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .left-panel {
+      background: rgba(13, 71, 161, 0.95);
+      color: white;
+      padding: 30px 20px;
+      width: 30%;
+      border-radius: 0 15px 15px 0;
+      height: 100vh;
+      overflow-y: auto;
+      position: fixed;
+      left: 0;
+      top: 0;
+    }
+
+    .right-panel {
+      margin-left: 30%;
+      padding: 30px;
+      flex: 1;
+      overflow-x: auto;
+    }
+
+    .table-wrapper {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    .btn-small {
+      font-size: 0.85rem;
+      padding: 6px 12px;
+    }
+
+    select {
+      margin-bottom: 10px;
+    }
+
+    #confirmation {
+      font-weight: bold;
+      color: #c8e6c9;
+    }
+
+    table {
+      background-color: white;
+      min-width: 750px; /* pour éviter d’avoir un tableau trop étroit */
+    }
+
+    .left-panel h3 {
+      text-align: center;
+      margin-bottom: 35px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="main-container">
+    <div class="left-panel">
+      <h3>Associer un stagiaire à un encadreur</h3>
+
+      <div class="mb-3 d-flex align-items-end">
+        <div class="flex-grow-1 me-2">
+          <label for="stagiaire">Choisir un stagiaire</label>
+          <select id="stagiaire" class="form-select"></select>
+        </div>
+        <button class="btn btn-danger btn-small" onclick="supprimerStagiaire()">Suppr</button>
+      </div>
+
+      <div class="mb-3 d-flex align-items-end">
+        <div class="flex-grow-1 me-2">
+          <label for="encadreur">Choisir un encadreur</label>
+          <select id="encadreur" class="form-select"></select>
+        </div>
+        <button class="btn btn-danger btn-small" onclick="supprimerEncadreur()">Suppr</button>
+      </div>
+
+      <button class="btn btn-success btn-small mt-2" onclick="combiner()">Associer</button>
+
+      <p class="mt-2" id="confirmation"></p>
+    </div>
+
+    <div class="right-panel">
+      <div class="table-wrapper">
+        <h4 class="text-center mb-4">Voir le résultat</h4>
+        <table class="table table-bordered table-striped table-sm">
+          <thead>
+            <tr>
+              <th>Nom du Stagiaire</th>
+              <th>Email Stagiaire</th>
+              <th>Téléphone Stagiaire</th>
+              <th>Encadreur</th>
+              <th>Fonction</th>
+              <th>Email Encadreur</th>
+              <th>Téléphone Encadreur</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div><script>
+  let disciple = JSON.parse(localStorage.getItem("disciple")) || [];
+  let encadreurs = JSON.parse(localStorage.getItem("encadreurs")) || [];
+
+  const stagiaireSelect = document.getElementById("stagiaire");
+  const encadreurSelect = document.getElementById("encadreur");
+
+  function rechargerListes() {
+    stagiaireSelect.innerHTML = "";
+    encadreurSelect.innerHTML = "";
+
+    disciple.forEach((s, i) => {
+      const option = document.createElement("option");
+      option.value = i;
+      option.text = `${s.nom} ${s.prenom}`;
+      stagiaireSelect.appendChild(option);
+    });
+
+    encadreurs.forEach((e, i) => {
+      const option = document.createElement("option");
+      option.value = i;
+      option.text = `${e.nom}`;  
+      encadreurSelect.appendChild(option);
+    });
+
+    stagiaireSelect.selectedIndex = -1;
+    encadreurSelect.selectedIndex = -1;
+  }
+
+  function combiner() {
+    const stagiaireIndex = stagiaireSelect.selectedIndex;
+    const encadreurIndex = encadreurSelect.selectedIndex;
+
+    if (stagiaireIndex < 0 || encadreurIndex < 0) {
+      alert("Veuillez sélectionner un stagiaire et un encadreur.");
+      return;
+    }
+
+    let associations = JSON.parse(localStorage.getItem("associations")) || [];
+
+    // Empêcher doublons
+    const existe = associations.some(a =>
+      a.stagiaire.nom === disciple[stagiaireIndex].nom &&
+      a.stagiaire.prenom === disciple[stagiaireIndex].prenom &&
+      a.encadreur.nom === encadreurs[encadreurIndex].nom
+    );
+
+    if (existe) {
+      alert("Cette association existe déjà !");
+      return;
+    }
+
+    associations.push({
+      stagiaire: disciple[stagiaireIndex],
+      encadreur: encadreurs[encadreurIndex]
+    });
+
+    localStorage.setItem("associations", JSON.stringify(associations));
+    document.getElementById("confirmation").textContent = "Association ajoutée avec succès.";
+
+    stagiaireSelect.selectedIndex = -1;
+    encadreurSelect.selectedIndex = -1;
+
+    afficherAssociations();
+  }
+
+
+  function afficherAssociations() {
+    const tbody = document.getElementById("table-body");
+    const associations = JSON.parse(localStorage.getItem("associations")) || [];
+    tbody.innerHTML = "";
+
+    associations.forEach(({ stagiaire, encadreur }, index) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${stagiaire.nom} ${stagiaire.prenom}</td>
+        <td>${stagiaire.email || ""}</td>
+        <td>${stagiaire.tel || ""}</td>
+        <td>${encadreur.nom}</td>
+        <td>${encadreur.fonction || ""}</td>
+        <td>${encadreur.email || ""}</td>
+        <td>${encadreur.telephone || ""}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="supprimerAssociation(${index})">Suppr</button></td>
+      `;
+      tbody.appendChild(row);
+    });
+  } function supprimerAssociation(index) {
+  let associations = JSON.parse(localStorage.getItem("associations")) || [];
+
+  const association = associations[index];
+  const stagiaireEmail = association.stagiaire.email;
+  const encadreurEmail = association.encadreur.email;
+
+  if (confirm(`Supprimer cette association ainsi que les infos du stagiaire et de l'encadreur ?`)) {
+ 
+    associations.splice(index, 1);
+    localStorage.setItem("associations", JSON.stringify(associations));
+
+    disciple = disciple.filter(s => s.email !== stagiaireEmail);
+    localStorage.setItem("disciple", JSON.stringify(disciple));
+
+    encadreurs = encadreurs.filter(e => e.email !== encadreurEmail);
+    localStorage.setItem("encadreurs", JSON.stringify(encadreurs));
+
+    rechargerListes();
+    afficherAssociations();
+  }
+}
+
+
+  window.onload = function () {
+    // Ajouter superviseur comme encadreur externe s’il existe et pas déjà présent
+    const superviseur = JSON.parse(localStorage.getItem("superviseur"));
+    if (superviseur) {
+      const existe = encadreurs.some(e => e.nom === superviseur.nom && e.email === superviseur.email);
+      if (!existe) {
+        encadreurs.push({
+          nom: superviseur.nom,
+          telephone: superviseur.telephone || "",
+          email: superviseur.email || "",
+          fonction: "Encadreur externe"
+        });
+        localStorage.setItem("encadreurs", JSON.stringify(encadreurs));
+      }
+    }
+
+    disciple = JSON.parse(localStorage.getItem("disciple")) || [];
+    encadreurs = JSON.parse(localStorage.getItem("encadreurs")) || [];
+    rechargerListes();
+    afficherAssociations();
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
